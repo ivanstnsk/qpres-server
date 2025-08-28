@@ -1,10 +1,15 @@
 const express = require("express");
-const http = require("http");
+const https = require("https");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 
 const app = express();
+
+const sslOptions = {
+  key: fs.readFileSync("/etc/ssl/private/selfsigned.key"),
+  cert: fs.readFileSync("/etc/ssl/certs/selfsigned.crt"),
+};
 
 // Game configuration
 const GAME_CONFIG = {
@@ -26,7 +31,7 @@ const corsOptions = {
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-const server = http.createServer(app);
+const server = https.createServer(sslOptions, app);
 
 // Socket.IO configuration with CORS
 const io = socketIo(server, {
@@ -165,5 +170,5 @@ io.on("connection", (socket) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`HTTPS Server running on port ${PORT}`);
 });
