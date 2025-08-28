@@ -31,7 +31,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log("CORS blocked origin:", origin);
+      // console.log("CORS blocked origin:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -87,7 +87,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
-  console.log("New player connected:", socket.id);
+  // console.log("New player connected:", socket.id);
 
   // Latency measurement
   socket.on("clientPing", (timestamp) => {
@@ -166,7 +166,7 @@ io.on("connection", (socket) => {
 
       player.lastUpdateTimestamp = now;
 
-      console.log("broadcast draw", drawData);
+      // console.log("broadcast draw", drawData);
 
       if (Object.keys(players).length > 1) {
         // Broadcast player draw to all other clients
@@ -191,7 +191,7 @@ io.on("connection", (socket) => {
 
   // Handle disconnection
   socket.on("disconnect", () => {
-    console.log("Player disconnected:", socket.id);
+    // console.log("Player disconnected:", socket.id);
 
     // Remove player from players and latency tracking
     delete players[socket.id];
