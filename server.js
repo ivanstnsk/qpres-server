@@ -1,15 +1,10 @@
 const express = require("express");
-const https = require("https");
+const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const path = require("path");
 
 const app = express();
-
-const sslOptions = {
-  key: fs.readFileSync("/etc/ssl/private/selfsigned.key"),
-  cert: fs.readFileSync("/etc/ssl/certs/selfsigned.crt"),
-};
 
 // Game configuration
 const GAME_CONFIG = {
@@ -18,27 +13,67 @@ const GAME_CONFIG = {
   playerRadius: 32,
 };
 
-// CORS configuration
+// CORS configuration - Updated for production
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow all origins for now, adjust in production
-    callback(null, true);
+    // Allow your domain and localhost for development
+    const allowedOrigins = [
+      "https://sothisismypresentationserver.stinsky.dev",
+      "http://localhost:3000",
+      "http://localhost:8080",
+      "https://stinsky.dev", // if you have other subdomains
+      // Add other domains as needed
+    ];
+
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log("CORS blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
   },
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // If you need to send cookies
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-const server = https.createServer(sslOptions, app);
+const server = http.createServer(app);
 
-// Socket.IO configuration with CORS
+// Socket.IO configuration with CORS - Updated for production
 const io = socketIo(server, {
   cors: {
-    origin: "*", // Be more specific in production
+    origin: [
+      "https://sothisismypresentationserver.stinsky.dev",
+      "https://sothisismypresentation.stinsky.dev",
+      "http://localhost:3000",
+      "http://localhost:8080",
+      "https://stinsky.dev",
+    ],
     methods: ["GET", "POST"],
+    credentials: true,
   },
+  // Add these for better performance behind proxy
+  transports: ["websocket", "polling"],
+  allowEIO3: true,
+});
+
+// Trust proxy - Important for deployment behind Nginx
+app.set("trust proxy", 1);
+
+// Health check endpoint - useful for monitoring
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    players: Object.keys(players).length,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Store players
@@ -165,10 +200,35 @@ io.on("connection", (socket) => {
     // Notify all clients about the disconnected player
     io.emit("playerLeft", socket.id);
   });
+
+  // Handle connection errors
+  socket.on("error", (err) => {
+    console.error("Socket error:", err);
+  });
+});
+
+// Error handling
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
+  server.close(() => {
+    console.log("Process terminated");
+  });
 });
 
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`HTTPS Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 });
